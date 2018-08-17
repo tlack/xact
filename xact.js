@@ -1,0 +1,1 @@
+../xs-pink/wasm/xact.js
