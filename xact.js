@@ -1,29 +1,34 @@
 function xact(Scope) {
-	if(!Scope) Scope={};
+	if(!Scope) Scope=this;
 	Scope.SHOWASSERT=SHOWASSERT=1;
 	Scope.MAXITER=MAXITER=5;
 	Scope.U=U=typeof(blehhhh);
 
 	// Values: Misc..
-	Scope.copy=function copy(x) { return jd(je(x)); }
-	Scope.eq=function eq(x,y) { //emit([x,y],'equal');
+	function copy(x) { return jd(je(x)); }
+	Scope.copy=copy;
+	function eq(x,y) { //emit([x,y],'equal');
 		if (typeof(x)!==typeof(y)) return false;
 		if (Array.isArray(x) && Array.isArray(y) && x.length!=y.length) return false;
 		if (typeof(x)!=='object' && x==y) return true; //simple values - hopefully
 		return JSON.stringify(x)==JSON.stringify(y); }
-	Scope.first=function first(x) {
+	Scope.eq=eq;
+	function first(x) {
 		if(!tarray(x)) throw 'first(): x::array';
 		return x[0]; }
-	Scope.ins=function ins(x,y) {
+	Scope.first=first;
+	function ins(x,y) {
 		if(tstr(x)&&tstr(x)) { return x+y; }
 		if(tstr(x)&&tarray(y)&&tstr(y[0])) { return x+over(ins,y) }/*!killme*/
 		if(tarray(x)) { var r=copy(x);r.push(y);return r; }
 		if(tdict(x)&&tdict(y)) { return Object.assign(x,y); }
 		return [x,y]; }
-	Scope.last=function last(x) {
+	Scope.ins=ins;
+	function last(x) {
 		if(!tarray(x)) throw 'last(): x::array';
 		return x[len(x)-1]; }
-	Scope.len=function len(x) { 
+	Scope.last=last;
+	function len(x) { 
 		const tx=typeof(x);
 		if(tarray(x)||tstr(x)) return x.length;
 		else if (tx==='object') {
@@ -33,16 +38,20 @@ function xact(Scope) {
 		};
 		throw 'len: bad arg';
 	}
-	Scope.max=function max(min,max) { if(tarray(min)) return Math.max.apply(null,min); else return Math.max(min,max);  }
-	Scope.min=function min(mm,mx) { if(tarray(mm)) return Math.min.apply(null,mm); else return Math.min(mm,mx); }
-	Scope.take=function take(x,n) {
+	Scope.len=len;
+	function max(min,max) { if(tarray(min)) return Math.max.apply(null,min); else return Math.max(min,max);  }
+	Scope.max=max;
+	function min(mm,mx) { if(tarray(mm)) return Math.min.apply(null,mm); else return Math.min(mm,mx); }
+	Scope.min=min;
+	function take(x,n) {
 		let st,en=n,i,R=[],xn=len(x);
 		if(n<0) st=xn-n; else st=0;
 		for(i=st;i<en;i++) R.push(x[i % xn]);
 		return R;
 	}
+	Scope.take=take;
 	// Values: Sorting..
-	Scope.sort=function sort(retcodes, vals, keyOpt) {
+	function sort(retcodes, vals, keyOpt) {
 		const tv=t(vals);
 		if (tv==='array') {
 			if (keyOpt) return vals.sort(function(a,b) {
@@ -52,76 +61,102 @@ function xact(Scope) {
 			else return vals.sort(function(a,b) { return a==b?0:(a<b?retcodes[0]:retcodes[1]); });
 		}
 		throw 'sort(): not yet implemented'; }
-	Scope.asc=function asc(vals, key) { return sort([-1, 1], vals, key); }
-	Scope.desc=function desc(vals, key) { return sort([1, -1], vals, key); }
+	Scope.sort=sort;
+	function asc(vals, key) { return sort([-1, 1], vals, key); }
+	Scope.asc=asc;
+	function desc(vals, key) { return sort([1, -1], vals, key); }
+	Scope.desc=desc;
 	// Values: Types..
-	Scope.t=function t(x) { 
+	function t(x) { 
 		if (Array.isArray(x)) return 'array';
 		const t=typeof(x);
 		if (x===U||t===U) return 'undef';
 		if (t==='number' && Math.floor(x)==x) return 'int'; /*lame*/
 		else if (t==='number') return 'float'; /*lame*/ else if (t==='function') return 'func';
 		return t; /*fallthru*/ }
-	Scope.tarray=function tarray(x) { return Array.isArray(x); }
-	Scope.tstr=function tstr(x) { return typeof(x)==='string'; }
-	Scope.tbox=function tbox(x) { return typeof(x)==='object' || Array.isArray(x); }
-	Scope.tdict=function tdict(x) { return typeof(x)==='object' && !Array.isArray(x); }
-	Scope.tfunc=function tfunc(x) { return typeof(x)==='function'; }
-	Scope.tU=function tU(x) { return typeof(x)==='undefined'; }
+	Scope.t=t;
+	function tarray(x) { return Array.isArray(x); }
+	Scope.tarray=tarray;
+	function tstr(x) { return typeof(x)==='string'; }
+	Scope.tstr=tstr;
+	function tbox(x) { return typeof(x)==='object' || Array.isArray(x); }
+	Scope.tbox=tbox;
+	function tdict(x) { return typeof(x)==='object' && !Array.isArray(x); }
+	Scope.tdict=tdict;
+	function tfunc(x) { return typeof(x)==='function'; }
+	Scope.tfunc=tfunc;
+	function tU(x) { return typeof(x)==='undefined'; }
 	// Debugging:
 	Scope._req=function _req(fs) {
 		if(typeof require=='undefined') throw('_req(): cannot get '+fs);
 		return require(fs); }
-	Scope.assert=function assert(v,exp,msg) { if(!eq(v,exp)) { emit([v,exp],'assertion failed: '+msg); process.exit(1); } if(SHOWASSERT)emit(msg,'passed:'); return v; }
-	Scope.emit=function emit(x,y){if(y!==undefined)console.log(y,': '); console.log(x);return x;}
-	Scope.noemit=function noemit(x,y){return x;}
-	Scope.ordie=function ordie(value, exc) { if(tU(value)) throw exc; else return value; }
+	function assert(v,exp,msg) { if(!eq(v,exp)) { emit([v,exp],'assertion failed: '+msg); process.exit(1); } if(SHOWASSERT)emit(msg,'passed:'); return v; }
+	Scope.assert=assert;
+	function emit(x,y){if(y!==undefined)console.log(y,': '); console.log(x);return x;}
+	Scope.emit=emit;
+	function noemit(x,y){return x;}
+	Scope.noemit=noemit;
+	function ordie(value, exc) { if(tU(value)) throw exc; else return value; }
+	Scope.ordie=ordie;
 	// System:
-	Scope.file=function file(fn, contentsOpt) {
+	function file(fn, contentsOpt) {
 		var fs=_req('fs');
 		if(tU(contentsOpt)) return fs.readFileSync(fn,'utf-8');
 		else return fs.writeFileSync(fn,contentsOpt,'utf-8'); }
-	Scope.jd=function jd(x) { return JSON.parse(x); }
-	Scope.je=function je(x) { return JSON.stringify(x); }
+	Scope.file=file;
+	function jd(x) { return JSON.parse(x); }
+	Scope.jd=jd;
+	function je(x) { return JSON.stringify(x); }
+	Scope.je=je;
 	// More trippy stuff
-	Scope.each=function(x,f) { x.forEach(f); }
-	Scope.eachleft=function(x,f) {
+	function each(x,f) { x.forEach(f); }
+	Scope.each=each;
+	function eachleft(x,f) {
 		if(!tarray(x) || x.length != 2 || !tarray(x[0])) throw 'eachLeft(): x must be [ [1, 2, 3], 10 ]';
 		const x0=x[0],x0n=x0.length,x1=x[1]; var i,R=[];
 		for(i=0;i<x0n;i++) R.push(f(x0[i],x1,i));
 		return R;
 	}
-	Scope.eachright=function(x,f) {
+	Scope.eachleft=eachleft;
+	function eachright(x,f) {
 		if(!tarray(x) || x.length != 2 || !tarray(x[1])) throw 'eachLeft(): x must be [ 10, [1, 2, 3] ]';
 		const x0=x[1],x0n=x0.length,x1=x[0]; var i,R=[];
 		for(i=0;i<x0n;i++) R.push(f(x1,x0[i],i));
 		return R;
 	}
-	Scope.eachboth=function(x,f) {
+	Scope.eachright=eachright;
+	function eachboth(x,f) {
 		if(!tarray(x) || x.length != 2 || !tarray(x[0]) || !tarray(x[0]) || len(x[0]) != len(x[1])) throw 'eachboth: [ [1,2,3],[10,20,30] ]';
 		const xn=len(x[0]); var i=0,R=[];
 		for(;i<xn;i++) R.push(f(x[0][i],x[1][i],i)); 
 		return R;
 	}
-	Scope.over=function over(x,f,val) { // binary function f; (f..(f(f(x[0],x[1]),x[2]),x[3...]))
+	Scope.eachboth=eachboth;
+	function over(x,f,val) { // binary function f; (f..(f(f(x[0],x[1]),x[2]),x[3...]))
 		if(!tarray(x)) throw 'over(): x must be array';
 		if(tU(val)) val=x.shift();
 		const xn=len(x); for(let i=0;i<xn;i++) val=f(val,x[i]);
 		return val;
 	}
-	Scope.proj1=function proj1(f,x) { return function(y) { f(x,y); } }
-	Scope.scan=function over(x,f,val) { // binary function f; [ f(x[0],x[1]), f(f(x[0],x[1]),x[2]), ... ]
+	Scope.over=over;
+	function projleft(f,x) { return function(y) { f(x,y); } }
+	Scope.projleft=projleft;
+	function projright(f,x) { return function(y) { f(x,y); } }
+	Scope.projright=projright;
+	function scan(x,f,val) { // binary function f; [ f(x[0],x[1]), f(f(x[0],x[1]),x[2]), ... ]
 		if(!tarray(x)) throw 'scan(): x must be array';
 		if(tU(val)) val=x.shift();
 		const xn=len(x); let R=[]; for(let i=0;i<xn;i++) R.push(val=f(val,x[i]));
 		return R;
 	}
+	Scope.scan=scan;
 	// "Recursive combinators"
-	Scope.exhaust=function exhaust(x,f,opt) {
+	function exhaust(x,f,opt) {
 		var last=x,iter=0;
 		while (1) { x=last; last=f(x,opt,iter); if (eq(x,last)) return last; if (iter++==MAXITER) return last; }
 	}
-	Scope.wide=function wide(x,f,last,path) { 
+	Scope.exhaust=exhaust;
+	function wide(x,f,last,path) { 
 		emit(x,'wide');
 		if(tU(x) || !tarray(x)) return x;
 		let xl=x.length; if(xl==0) return x;
@@ -136,7 +171,8 @@ function xact(Scope) {
 		//[ [ 49, 2, [ 147, 4 ] ], 8 ]
 		//[ [ 7, 2, [ 21, 4 ] ], 8 ]
 	}
-	Scope.deep=function deep(x,f,last) { 
+	Scope.wide=wide;
+	function deep(x,f,last) { 
 		if(!tarray(x)) throw 'deep(): arg not list';
 		let xl=x.length; if(xl==0) return x;
 		if(last==undefined) last=x;
@@ -147,7 +183,8 @@ function xact(Scope) {
 		}
 		return R;
 	}
-	Scope.get=function get(x,idx) {
+	Scope.deep=deep;
+	function get(x,idx) {
 		//emit([x,idx],'get');
 		if(tarray(idx)) { // deep indexing:
 			var R=[],i;
@@ -159,13 +196,15 @@ function xact(Scope) {
 			return last;
 		} else return x[idx]; // todo funcs
 	}
-	Scope.match=function(x,sym) {
+	Scope.get=get;
+	function match(x,sym) {
 		if(!tarray(x)) throw 'match(): x must be [ ["$syma"],["$symb",3,4,5] ]';
 		var R=[];
 		function visit(x, path, last) { if(x[0]==sym) R.push(path); return x; }
 		var z=wide(x, visit);
 		return R;
 	}
+	Scope.match=match;
 	function _nest0(L, open, close, path) {
 		noemit(L,'start _nest0 '+path);
 		const LL=L.length; var opens=[],R=[],i;
@@ -189,7 +228,7 @@ function xact(Scope) {
 		noemit(R,'_end nest0 '+path);
 		return R;
 	}
-	Scope.nest=function nest(L, open, close) {
+	function nest(L, open, close) {
 		if(!tarray(L)) throw('nest(): L::array');
 		L=[L];
 		emit(L,"nest");
@@ -197,7 +236,7 @@ function xact(Scope) {
 		//return _nest0(L,open,close,0);
 		return R;
 	}
-
+	Scope.nest=nest;
 	Scope.selftest=function() {
 		assert(asc([4,1,7]),[1,4,7],'asc0');
 		assert(desc([4,1,7]),[7,4,1],'desc0');
