@@ -155,6 +155,7 @@ function xact(Scope) {
 		for(i=1;i<len(x);i++) {
 			// emit(x[i],'alike '+i+'/'+len(x)); emit(issym(x[i])); emit(issym(x[i-1]));
 			if(x[i]==x[i-1] ||
+				 eq(x[i],x[i-1]) ||
 				 (issym(x[i]) && issym(x[i-1]) 
 				  && ($sym(x[i]) == $sym(x[i-1])))) { 
 				// emit(i,'combalikematch');
@@ -318,7 +319,7 @@ function xact(Scope) {
 	function _nest1(L, open, close, cb, path) {
 		emit(L,'start _nest1 '+path);
 		const LL=L.length; var opens=[],R=[],i;
-if(LL==0) return L;
+		if(LL==0) return L;
 		R=L;
 		for(i=0; i<LL; i++) {
 			if(L[i]==open) {
@@ -441,6 +442,10 @@ if(LL==0) return L;
 
 		var d=[[1,2,1]], p=['$and',[1]], r=match(d,p);
 		emit(r,'r');
+
+		var f7=function(x,y){return 7};
+		var r=alike([1,1,3,1,3],f7); assert(r,[7,3,1,3],'alike0');
+		assert(alike([[1,2],[1,2],[1,3],1,[1,4]],f7),[7,[1,3],1,[1,4]],'alike1');
 		emit('all tests','passed');
 	}
 	return Scope;
