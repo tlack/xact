@@ -7,10 +7,11 @@ function xact(Scope) {
 	Scope.U=U=typeof(blehhhh);
 
 	// Values: Make one..
-	function make(x, newtype) {
+	function make(x, newtype, makers) {
 		if(!tstr(newtype)) throw 'make(): newtype::str'; // TODO declarative expects
+		makers=makers||MAKERS;
+		if(makers[newtype]) return makers[newtype](x,newtype);
 		if(newtype[0]=='$') return [newtype,x];
-		if(MAKERS[newtype]) return MAKERS[newtype](x,newtype);
 		throw 'make(): nyi';
 	}
 	Scope.make=make;
