@@ -1,7 +1,7 @@
 // TODO use better array intrinsics
 function xact(Scope) {
 	if(!Scope) Scope=this;
-	Scope.MAKERS={};
+	Scope.MAKERS=MAKERS={};
 	Scope.MAXITER=MAXITER=5;
 	Scope.SHOWASSERT=SHOWASSERT=1;
 	Scope.U=U=typeof(blehhhh);
@@ -11,7 +11,7 @@ function xact(Scope) {
 		if(!tstr(newtype)) throw 'make(): newtype::str'; // TODO declarative expects
 		makers=makers||MAKERS;
 		if(makers[newtype]) return makers[newtype](x,newtype);
-		if(newtype[0]=='$') return [newtype,x];
+		if(newtype[0]=='$') { var o={};o[newtype]=x;return o; }
 		throw 'make(): nyi';
 	}
 	Scope.make=make;
@@ -64,7 +64,8 @@ function xact(Scope) {
 		if(tarray(x)&&tarray(y)) { var R=[]; for(var i=0;i<len(x);i++) R.push(x[i]); for(var j=0;j<len(y);j++) R.push(y[j]); return R; }
 		return [x,y]; } Scope.merge=merge;
 	function ravel(x) { return tarray(x)?x:[x]; } Scope.ravel=ravel;
-	function $sym(x) { return tsym(x) ? x[0] : ''; } Scope.$sym=$sym;
+	function $sym(x) { return tsym(x) ? Object.keys(x)[0] : ''; } Scope.$sym=$sym;
+	function $data(x) { return tsym(x) ? Object.values(x)[0] : undefined; } Scope.$data=$data;
 	function take(x,n) {
 		let st,en=n,i,R=[],xn=len(x);
 		if(n<0) st=xn-n; else st=0;
@@ -103,7 +104,11 @@ function xact(Scope) {
 	function tbox(x) { return typeof(x)==='object' || Array.isArray(x); } Scope.tbox=tbox;
 	function tdict(x) { return typeof(x)==='object' && !Array.isArray(x); } Scope.tdict=tdict;
 	function tfunc(x) { return typeof(x)==='function'; } Scope.tfunc=tfunc;
-	function tsym(x) { return tarray(x)&&tstr(x[0])&&x[0][0]=='$'?true:false; } Scope.tsym=tsym;
+	function tsym(x) { 
+		if (!tdict(x)) return false;
+		let k=Object.keys(x)[0];
+		if(!k || k[0]!='$') return false;
+		return true; } Scope.tsym=tsym;
 	function tU(x) { return x===undefined; } Scope.tU=tU;
 	// Debugging:
 	Scope._req=function _req(fs) {
@@ -211,11 +216,15 @@ function xact(Scope) {
 		if(path==undefined) path=[];
 		let R=[];
 		for (let i=0;i<xl;i++) {
-			var p=ins(path,i); 
-			if(tarray(x[i]) && !tsym(x[i])) last=deep(x[i],f,last,p); else last=f(x[i],last,p);
+			var p=ins(path,i),xi=x[i];
+			emit(xi,'deep x'+i);
+			if(tsym(xi) && tarray($data(xi))) last=deep($data(xi),f,last,p);
+			else if(tarray(xi)) last=deep(xi,f,last,p); 
+			else last=f(xi,last,p);
+			emit(last,'deep loop last'+i);
 			if(!tU(last)) R.push(last);
 		}
-		return R;
+		return R.length?R:undefined;
 	}
 	Scope.deep=deep;
 	function get(x,idx) {
@@ -225,10 +234,17 @@ function xact(Scope) {
 			var last=x;
 			for(i=0; i<idx.length; i++) {
 				if(tfunc(last)) last=last(idx[i]);
-				else last=last[idx[i]];
+				else {
+					if(tsym(last)) last=$data(last);
+					last=last[idx[i]];
+				}
 			}
 			return last;
-		} else return x[idx]; // todo funcs
+		} else {
+			if (tsym(x)) return $data(x)[idx];
+			else if (tfunc(x)) return x(idx);
+			else return x[idx]; // todo funcs
+		}
 	}
 	Scope.get=get;
 	function match(x,patterns) {
@@ -237,25 +253,26 @@ function xact(Scope) {
 		noemit(patterns,'match pat');
 		var R=[];
 		function visitSym(x, last, path) { 
-			if(x[0]==patterns) R.push(emit(path,'visitSym')); return x; }
+			if($sym(x)==patterns) R.push(emit(path,'visitSym')); return x; }
 		function visitVal(x, last, path) { 
 			if(x==patterns) R.push(path); return x; }
 		function visitAnd(x, last, path) {
+			emit('visitAnd');
 			let i,j, patn=len(patterns), xn=len(x);
 			for(i=0;i<xn;i++) {
-				noemit(i,'i');
+				emit(i,'i');
 				var matchval=[];
 				var found=1;
 				var xij,pj;
 				for(j=0;j<patn;j++) {
-					noemit(j,'j');
+					emit(j,'j');
 					pj=patterns[j]; xij=x[i+j];
 					if(tsym(pj) && $sym(pj) == $sym(xij)) {
-						noemit([pj,$sym(pj),xij,$sym(xij)],'visitAnd match');
+						emit([pj,$sym(pj),xij,$sym(xij)],'visitAnd match');
 						continue;
 					}
 					if(pj == xij) {
-						noemit([pj,xij],'visitAnd value match'); continue; }
+						emit([pj,xij],'visitAnd value match'); continue; }
 					found=0;
 					break;
 				}
@@ -269,14 +286,12 @@ function xact(Scope) {
 			}
 			return x; }
 		var z;
-		if(tarray(patterns)) {
+		if(tsym(patterns)) {
+			emit(patterns,'tsym');
 			let op=$sym(patterns); 
-			if(op=='$and') { 
-				patterns=patterns[1]; 
-				z=wide(x,visitAnd);
-			}
+			if(op=='$and') { patterns=$data(patterns); z=wide(x,visitAnd); }
 		}
-		if(patterns[0]=='$') z=wide(x,visitSym);
+		if(patterns[0]=='$') z=deep(x,visitSym);
 		else z=deep(x,visitVal);
 		return R;
 	}
@@ -291,14 +306,14 @@ function xact(Scope) {
 			var i;
 			emit(x,'resolve0');
 			for(i=0;i<patn;i+=2) {
-				if(patterns[i][0]=='$' && x[0]==patterns[i] ||
+				if(tsym(patterns[i]) && $sym(x)==$sym(patterns[i]) ||
 					 patterns[i]==x ||
 					 (patterns[i].test && patterns[i].test(x))) {
-					emit(patterns[i],'resolve sym match');
+					emit([x, patterns[i]],'resolve sym match');
 					var fn=patterns[i+1];
 					if(tfunc(fn)) x=fn(x); else x=fn;
-					emit(x,'amended');
-					continue;
+					emit(x,'new value');
+					break;
 				}
 			}
 			return x;
@@ -386,27 +401,28 @@ function xact(Scope) {
 		assert(exhaust(10, function(x) { return x <= 5 ? x : x-1; }),5,'exhaust0');
 		var t=[[1,2,[3,4]],8];
 		var a=deep(t,function(x){return x*2;});
+		emit(a);
 		assert(last(a),16,'deep0');assert(len(a),2,'deep1');assert(a[0][2][0],6,'deep2');
 		var aa=deep(t,function(x){if (x%2==0) return x*10;});
 		assert(aa,[[20,[40]],80],'deep3');
 		var b=wide(t,function(x){emit(x,'wide-b-x'); if (!tarray(x[0])) x[0]=x[0]*7;return x;});
 		emit(b,'finalb');
 		assert(last(b),8,'wide0'); assert(b[0][0],7,'wide1'); assert(b[0][2][0],21,'wide2');
-		var t_sym=[ ['$name','Bob'], make(30,'$age'), ['$parents',['$name','Olga'],make('Sam','$name')]];
-		var c=wide(t_sym,function(x){if(first(x)=='$name')x[1]=x[1].toUpperCase();return x;});
-		assert(first(c)[1],'BOB','wide0sym');
+		var t_sym=[ {'$name':'Bob'}, make(30,'$age'), {'$parents':[{'$name':'Olga'},make('Sam','$name')]} ];
+		var c=deep(t_sym,function(x){emit(x,'deep');if($sym(x)=='$name')return make($data(x).toUpperCase(),'$name');return x;});
+		emit(je(c),'c');
+		assert($data(first(c)),'BOB','deep0sym');
 
-		var c=wide(t_sym,function(x){emit(x,'t_sym_f'); if (x[0]=='$age') return x;});
+		var c=deep(t_sym,function(x){emit(x,'t_sym_f'); if ($sym(x)=='$age') return x;});
 		emit(c,'wide-c');
-		assert(len(c)==1 && len(c[0])==2 && first(c)[0],'$age','wide1sym');
+		assert(len(c)==1 && $sym(first(c)),'$age','wide1sym');
 		var d=match(t_sym, '$name');
 		var e=eachright([t_sym,d],get);
 		assert(len(e),len(d),'match-er-0');
-
+		emit(t_sym);
 		emit(d);
 		emit(e);
-
-		assert(first(last(e)),'$name','match-er-1');
+		assert($sym(last(e)),'$name','match-er-1');
 
 		o=nest("1(2)".split(''),"(",")");
 		assert(len(o),1,'nest0'); assert(len(o[0]),2,'nest1'); assert(len(o[0][1]),1,'nest2');
@@ -438,13 +454,16 @@ function xact(Scope) {
 
 		var d=[1], p=[1], r=match(d,p);
 		assert(r,[[0]],'m1-t1');
-		var d=[1], p=['$and',[1]], r=match(d,p);
+		var d=[1], p=make([1],'$and'), r=match(d,p);
+		emit(d,'d');
+		emit(p,'p');
+		emit(r,'r');
 		assert(r,[[0]],'m1-t2');
-		var d=[1], p=['$and',[1,2]], r=match(d,p);
+		var d=[1], p=make([1,2],'$and'), r=match(d,p);
 		assert(r,[],'m1-t3');
-		var d=[[1,2]], p=['$and',[1,2]], r=match(d,p);
+		var d=[[1,2]], p=make([1,2],'$and'), r=match(d,p);
 		assert(r,[[0,0]],'m1-t4');
-		var d=[1,2], p=['$and',[1]], r=match(d,p);
+		var d=[1,2], p=make([1],'$and'), r=match(d,p);
 		assert(r,[[0]],'m1-t5');
 
 		var md=[[1,2]];
@@ -452,9 +471,9 @@ function xact(Scope) {
 		assert(m1,[[0,0]],'match AND 1');
 		var m1=match(md,make([1,2,1],'$and'));
 		assert(m1,[],'match AND 2');
-		assert(match([[1,2,1]],['$and',[1,2]]),[[0,0]],'match AND 3');
-		assert(match([[1,2,1]],['$and',[2,1]]),[[0,1]],'match AND 4');
-		assert(match([[1,2,1]],['$and',[1,2,1]]),[[0,0]],'match AND 5');
+		assert(match([[1,2,1]],make([1,2],'$and')),[[0,0]],'match AND 3');
+		assert(match([[1,2,1]],make([2,1],'$and')),[[0,1]],'match AND 4');
+		assert(match([[1,2,1]],make([1,2,1],'$and')),[[0,0]],'match AND 5');
 
 		var d=[[1,2,1]], p=['$and',[1]], r=match(d,p);
 		emit(r,'r');
@@ -472,7 +491,7 @@ function xact(Scope) {
 		assert(resolve([1,2,3],[1,function(x){return 999;}]),[999,2,3],'resolve0');
 		assert(resolve([1,2,3],[5,function(x){return 999;}]),[1,2,3],'resolve1');
 		assert(resolve([1,2,1],[1,function(x){return 999;}]),[999,2,999],'resolve2');
-		assert(resolve([make(1,'$x'),2],['$x',function(x){return 999;}]),[999,2],'resolve3');
+		assert(resolve([make(1,'$x'),2],[make([],'$x'),function(x){return 999;}]),[999,2],'resolve3');
 		emit('all tests','passed');
 	}
 	return Scope;
