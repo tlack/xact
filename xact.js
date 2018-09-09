@@ -71,10 +71,10 @@ function xact(Scope) {
 		};
 		throw 'len: bad arg '+tx;
 	} Scope.len=len;
-	function merge(x,y) { 
-		//emit([x,y],'merge');
+	function glue(x,y) { 
+		//emit([x,y],'glue');
 		if(tsym(x)&&tsym(y)) return make(y,$sym(x)); 
-		return [x,y]; } Scope.merge=merge;
+		return [x,y]; } Scope.glue=glue;
 	function ravel(x) { return tarray(x)?x:[x]; } Scope.ravel=ravel;
 	function $sym(x) { return tsym(x) ? Object.keys(x)[0] : ''; } Scope.$sym=$sym;
 	function $data(x) { return tsym(x) ? Object.values(x)[0] : undefined; } Scope.$data=$data;
